@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard TPS – PilahIn</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="dashboard" id="app" style="display:none">
+  <div class="dash-header" style="background:linear-gradient(135deg,#e65100,#ffa726)">
+    <div>
+      <h1 style="color:#fff">Pengelola TPS</h1>
+      <div class="greeting" style="color:rgba(255,255,255,.8)" id="greeting">-</div>
+    </div>
+    <div class="avatar orange" id="avatarBtn" style="background:rgba(255,255,255,.25);color:#fff">T</div>
+  </div>
+
+  <!-- Tab: Pickup Hari Ini -->
+  <div class="dash-body" id="tab-home">
+    <div class="stat-grid" style="margin-top:16px">
+      <div class="stat-card">
+        <div class="label">Dijadwalkan</div>
+        <div class="value" style="color:#f57c00" id="statJadwal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Selesai Hari Ini</div>
+        <div class="value" style="color:#2d6a4f" id="statSelesai">0</div>
+      </div>
+    </div>
+
+    <div class="section-title">Pickup Dijadwalkan</div>
+    <div id="pickupList"></div>
+  </div>
+
+  <!-- Tab: Riwayat -->
+  <div class="dash-body" id="tab-riwayat" style="display:none">
+    <div class="section-title" style="margin-top:16px">Pickup Selesai</div>
+    <div id="riwayatList"></div>
+  </div>
+
+  <!-- Tab: Profil -->
+  <div class="dash-body" id="tab-profil" style="display:none">
+    <div style="margin-top:16px">
+      <div class="profile-header">
+        <div class="profile-avatar orange" id="profAvatar">T</div>
+        <div class="profile-name" id="profNama">-</div>
+        <div class="profile-role" id="profLokasi">Pengelola TPS</div>
+      </div>
+      <div class="menu-list">
+        <a href="#" onclick="if(confirm('Yakin logout?')){auth.logout();location.href='../index.html';}return false" style="color:#c62828">
+          <span class="micon">🚪</span><span>Logout</span><span class="chevron">›</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-item active orange" onclick="switchTab('home')" href="#">
+      <span class="nav-icon">🚛</span><span>Pickup</span>
+    </a>
+    <a class="nav-item" onclick="switchTab('riwayat')" href="#">
+      <span class="nav-icon">📋</span><span>Riwayat</span>
+    </a>
+    <a class="nav-item" onclick="switchTab('profil')" href="#">
+      <span class="nav-icon">👤</span><span>Profil</span>
+    </a>
+  </nav>
+</div>
+
+<!-- Modal: Konfirmasi Pickup -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <span class="modal-close" onclick="closeModal()">✕</span>
+    <h2>Konfirmasi Pickup</h2>
+    <div id="modalDetail" style="background:#fff3e0;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.8"></div>
+    <div class="form-group">
+      <label style="color:#f57c00">⚖️ Berat Aktual (kg)</label>
+      <input type="number" id="beratAktual" placeholder="Timbangan lapangan" min="0.1" step="0.1">
+    </div>
+    <div class="form-group">
+      <label style="color:#f57c00">📝 Catatan Pickup</label>
+      <input type="text" id="catatanPickup" placeholder="Kondisi sampah, catatan lain...">
+    </div>
+    <button class="btn orange" onclick="konfirmasiPickup()">✅ Konfirmasi Selesai</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script>
+let user, activeReqId;
+
+window.onload = function() {
+  user = auth.require('tps');
+  if (!user) return;
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('greeting').textContent = 'Halo, ' + user.nama + '!';
+  document.getElementById('avatarBtn').textContent = user.nama[0].toUpperCase();
+  document.getElementById('profAvatar').textContent = user.nama[0].toUpperCase();
+  document.getElementById('profNama').textContent = user.nama;
+  document.getElementById('profLokasi').textContent = user.lokasi || 'Pengelola TPS';
+  renderDashboard();
+};
+
+function allRequests() { return db.get('requests', []).sort((a,b) => (a.tglPickup||0) - (b.tglPickup||0)); }
+
+function renderDashboard() {
+  const reqs = allRequests();
+  const scheduled = reqs.filter(r => r.status === 'dijadwalkan');
+  const done = reqs.filter(r => r.status === 'selesai');
+  const today = new Date().toDateString();
+  const todayDone = done.filter(r => new Date(r.tglPickup).toDateString() === today);
+
+  document.getElementById('statJadwal').textContent = scheduled.length;
+  document.getElementById('statSelesai').textContent = todayDone.length;
+
+  document.getElementById('pickupList').innerHTML = scheduled.length
+    ? scheduled.map(r => itemHtml(r, true)).join('')
+    : '<div class="empty-state"><div class="icon">🎉</div><p>Tidak ada pickup terjadwal</p></div>';
+
+  document.getElementById('riwayatList').innerHTML = done.length
+    ? done.reverse().map(r => itemHtml(r, false)).join('')
+    : '<div class="empty-state"><div class="icon">📋</div><p>Belum ada pickup selesai</p></div>';
+}
+
+function itemHtml(r, showBtn) {
+  return `<div class="list-item">
+    <div class="icon">🗑️</div>
+    <div class="info">
+      <div class="title">${r.wargaNama} · ${r.jenisSampah}</div>
+      <div class="meta">📍 ${r.wargaAlamat}</div>
+      <div class="meta">📅 ${r.jadwalStr || fmtDate(r.tglPickup)} · ${r.beratKg} kg (estimasi)</div>
+      ${r.beratAktual ? `<div class="meta">⚖️ Aktual: ${r.beratAktual} kg</div>` : ''}
+      ${r.catatan ? `<div class="meta">📝 ${r.catatan}</div>` : ''}
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      ${badgeHtml(r.status)}
+      ${showBtn ? `<button onclick="openModal('${r.id}')" style="font-size:11px;padding:4px 10px;border:1.5px solid #f57c00;border-radius:20px;background:transparent;color:#f57c00;cursor:pointer">Konfirmasi</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function switchTab(tab) {
+  ['home','riwayat','profil'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach((el, i) => {
+    const active = ['home','riwayat','profil'][i] === tab;
+    el.classList.toggle('active', active);
+    el.classList.toggle('orange', active);
+  });
+  renderDashboard();
+}
+
+function openModal(id) {
+  activeReqId = id;
+  const r = db.get('requests', []).find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('modalDetail').innerHTML =
+    `<b>Warga:</b> ${r.wargaNama}<br><b>Alamat:</b> ${r.wargaAlamat}<br><b>Sampah:</b> ${r.jenisSampah} · estimasi ${r.beratKg} kg<br><b>Jadwal:</b> ${r.jadwalStr || '-'}`;
+  document.getElementById('beratAktual').value = r.beratKg;
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('overlay').classList.remove('open'); activeReqId = null; }
+
+function konfirmasiPickup() {
+  const berat = parseFloat(document.getElementById('beratAktual').value) || 0;
+  if (!berat) { toast('Isi berat aktual sampah', 'error'); return; }
+  const catatan = document.getElementById('catatanPickup').value.trim();
+  const reqs = db.get('requests', []);
+  const idx = reqs.findIndex(r => r.id === activeReqId);
+  if (idx === -1) return;
+  reqs[idx].status = 'selesai';
+  reqs[idx].beratAktual = berat;
+  reqs[idx].catatanPickup = catatan;
+  reqs[idx].tglPickup = Date.now();
+  db.set('requests', reqs);
+  closeModal();
+  renderDashboard();
+  toast('Pickup dikonfirmasi selesai! ✅');
+}
+
+document.getElementById('overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+</body>
+</html>

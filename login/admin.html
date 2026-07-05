@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login Admin RT/RW – PilahIn</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+<style> :root { --accent: #42a5f5; } </style>
+</head>
+<body>
+<a class="back-btn" href="../index.html">←</a>
+
+<div class="page blue-bg" style="padding-top:60px">
+  <div class="app-icon blue">🛡️</div>
+  <h1 class="app-title blue">Login Admin RT/RW</h1>
+  <p class="app-subtitle">Kelola request & jadwal warga</p>
+
+  <div id="alert" class="alert error" style="display:none;width:100%;max-width:420px"></div>
+
+  <form id="loginForm" style="width:100%;max-width:420px">
+    <div class="form-group">
+      <label style="color:var(--blue)">👤 Username</label>
+      <input type="text" id="username" placeholder="Masukkan username" required>
+    </div>
+    <div class="form-group">
+      <label style="color:var(--blue)">🔒 Password</label>
+      <input type="password" id="password" placeholder="Masukkan password" required>
+    </div>
+    <button type="submit" class="btn blue">Masuk</button>
+  </form>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const user = auth.login('admin', document.getElementById('username').value.trim(), document.getElementById('password').value);
+  if (!user) {
+    const al = document.getElementById('alert');
+    al.textContent = 'Username atau password salah.';
+    al.style.display = 'block';
+    return;
+  }
+  auth.setSession('admin', user);
+  location.href = '../admin/dashboard.html';
+});
+</script>
+</body>
+</html>

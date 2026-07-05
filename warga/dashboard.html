@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Warga – PilahIn</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="dashboard" id="app" style="display:none">
+  <div class="dash-header green-bg" style="background:linear-gradient(135deg,#2d6a4f,#52b788)">
+    <div>
+      <h1 style="color:#fff">PilahIn</h1>
+      <div class="greeting" style="color:rgba(255,255,255,.8)" id="greeting">Selamat datang</div>
+    </div>
+    <div class="avatar green" id="avatarBtn" style="background:rgba(255,255,255,.25);color:#fff">B</div>
+  </div>
+
+  <!-- Tab: Beranda -->
+  <div class="dash-body" id="tab-home">
+    <div class="stat-grid" style="margin-top:16px">
+      <div class="stat-card">
+        <div class="label">Total Request</div>
+        <div class="value green" id="statTotal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Menunggu</div>
+        <div class="value" style="color:#e65100" id="statMenunggu">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Dijadwalkan</div>
+        <div class="value" style="color:#1565c0" id="statJadwal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Selesai</div>
+        <div class="value green" id="statSelesai">0</div>
+      </div>
+    </div>
+
+    <div class="section-title">Request Terbaru</div>
+    <div id="requestList"></div>
+
+    <button class="btn green" onclick="openModal()" style="margin-top:8px">+ Buat Request Pickup</button>
+  </div>
+
+  <!-- Tab: Riwayat -->
+  <div class="dash-body" id="tab-riwayat" style="display:none">
+    <div class="section-title" style="margin-top:16px">Semua Riwayat</div>
+    <div id="riwayatList"></div>
+  </div>
+
+  <!-- Tab: Profil -->
+  <div class="dash-body" id="tab-profil" style="display:none">
+    <div style="margin-top:16px">
+      <div class="profile-header">
+        <div class="profile-avatar green" id="profAvatar">B</div>
+        <div class="profile-name" id="profNama">-</div>
+        <div class="profile-role">Warga</div>
+        <div style="font-size:12px;color:#888;margin-top:4px" id="profAlamat">-</div>
+      </div>
+      <div class="menu-list">
+        <a href="#">
+          <span class="micon">📞</span>
+          <span id="profHp">-</span>
+          <span class="chevron">›</span>
+        </a>
+        <a href="#" onclick="if(confirm('Yakin logout?')){auth.logout();location.href='../index.html';}return false" style="color:#c62828">
+          <span class="micon">🚪</span>
+          <span>Logout</span>
+          <span class="chevron">›</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a class="nav-item active green" onclick="switchTab('home')" href="#">
+      <span class="nav-icon">🏠</span><span>Beranda</span>
+    </a>
+    <a class="nav-item" onclick="switchTab('riwayat')" href="#">
+      <span class="nav-icon">📋</span><span>Riwayat</span>
+    </a>
+    <a class="nav-item" onclick="switchTab('profil')" href="#">
+      <span class="nav-icon">👤</span><span>Profil</span>
+    </a>
+  </nav>
+</div>
+
+<!-- Modal: Buat Request -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <span class="modal-close" onclick="closeModal()">✕</span>
+    <h2>Buat Request Pickup</h2>
+    <div class="form-group">
+      <label>🗑️ Jenis Sampah</label>
+      <select id="jenisSampah">
+        <option value="Organik">Organik (sisa makanan, daun)</option>
+        <option value="Plastik">Plastik</option>
+        <option value="Kertas">Kertas / Kardus</option>
+        <option value="Kaca">Kaca / Botol</option>
+        <option value="Logam">Logam / Kaleng</option>
+        <option value="Elektronik">Elektronik (e-waste)</option>
+        <option value="B3">B3 (baterai, cat, dll)</option>
+        <option value="Lainnya">Lainnya</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>⚖️ Estimasi Berat (kg)</label>
+      <input type="number" id="beratKg" placeholder="Contoh: 2" min="0.1" step="0.1">
+    </div>
+    <div class="form-group">
+      <label>📝 Catatan (opsional)</label>
+      <textarea id="catatan" rows="2" placeholder="Keterangan tambahan..."></textarea>
+    </div>
+    <button class="btn green" onclick="submitRequest()">Kirim Request</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script>
+let user;
+
+window.onload = function() {
+  user = auth.require('warga');
+  if (!user) return;
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('greeting').textContent = 'Halo, ' + user.nama.split(' ')[0] + '!';
+  document.getElementById('avatarBtn').textContent = user.nama[0].toUpperCase();
+  document.getElementById('profAvatar').textContent = user.nama[0].toUpperCase();
+  document.getElementById('profNama').textContent = user.nama;
+  document.getElementById('profAlamat').textContent = user.alamat;
+  document.getElementById('profHp').textContent = user.noHp;
+  renderDashboard();
+};
+
+function getMyRequests() {
+  return db.get('requests', []).filter(r => r.wargaId === user.id).sort((a,b) => b.tglRequest - a.tglRequest);
+}
+
+function renderDashboard() {
+  const reqs = getMyRequests();
+  document.getElementById('statTotal').textContent = reqs.length;
+  document.getElementById('statMenunggu').textContent = reqs.filter(r => r.status === 'menunggu').length;
+  document.getElementById('statJadwal').textContent = reqs.filter(r => r.status === 'dijadwalkan').length;
+  document.getElementById('statSelesai').textContent = reqs.filter(r => r.status === 'selesai').length;
+
+  const recent = reqs.slice(0, 5);
+  document.getElementById('requestList').innerHTML = recent.length ? recent.map(itemHtml).join('') : '<div class="empty-state"><div class="icon">📭</div><p>Belum ada request pickup</p></div>';
+  document.getElementById('riwayatList').innerHTML = reqs.length ? reqs.map(itemHtml).join('') : '<div class="empty-state"><div class="icon">📭</div><p>Belum ada riwayat</p></div>';
+}
+
+function itemHtml(r) {
+  return `<div class="list-item">
+    <div class="icon">🗑️</div>
+    <div class="info">
+      <div class="title">${r.jenisSampah} ${r.beratKg ? '('+r.beratKg+' kg)' : ''}</div>
+      <div class="meta">${fmtDate(r.tglRequest)} ${r.jadwalStr ? '· Pickup: '+r.jadwalStr : ''}</div>
+    </div>
+    ${badgeHtml(r.status)}
+  </div>`;
+}
+
+function switchTab(tab) {
+  ['home','riwayat','profil'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach((el, i) => {
+    el.classList.toggle('active', ['home','riwayat','profil'][i] === tab);
+    el.classList.toggle('green', ['home','riwayat','profil'][i] === tab);
+  });
+  if (tab === 'riwayat') renderDashboard();
+}
+
+function openModal() { document.getElementById('overlay').classList.add('open'); }
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+
+function submitRequest() {
+  const jenis = document.getElementById('jenisSampah').value;
+  const berat = parseFloat(document.getElementById('beratKg').value) || 0;
+  const catatan = document.getElementById('catatan').value.trim();
+  if (!berat) { toast('Isi estimasi berat sampah', 'error'); return; }
+  db.push('requests', {
+    id: genId(), wargaId: user.id, wargaNama: user.nama, wargaAlamat: user.alamat,
+    jenisSampah: jenis, beratKg: berat, catatan, status: 'menunggu',
+    tglRequest: Date.now(), tglPickup: null
+  });
+  closeModal();
+  document.getElementById('beratKg').value = '';
+  document.getElementById('catatan').value = '';
+  renderDashboard();
+  toast('Request berhasil dikirim! 🎉');
+}
+
+document.getElementById('overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+</body>
+</html>

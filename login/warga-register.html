@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daftar Warga – PilahIn</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+<style> :root { --accent: #52b788; } </style>
+</head>
+<body>
+<a class="back-btn" href="warga.html">←</a>
+
+<div class="page green-bg" style="padding-top:60px">
+  <div class="app-icon green">♻️</div>
+  <h1 class="app-title green">Daftar Warga</h1>
+  <p class="app-subtitle">Buat akun untuk mengelola sampah Anda</p>
+
+  <div id="alert" class="alert" style="display:none;width:100%;max-width:420px"></div>
+
+  <form id="regForm" style="width:100%;max-width:420px">
+    <div class="form-group">
+      <label>👤 Nama Lengkap</label>
+      <input type="text" id="nama" placeholder="Masukkan nama lengkap" required>
+    </div>
+    <div class="form-group">
+      <label>👤 Username</label>
+      <input type="text" id="username" placeholder="Pilih username" required>
+    </div>
+    <div class="form-group">
+      <label>📞 No. HP</label>
+      <input type="tel" id="noHp" placeholder="Contoh: 08123456789" required>
+    </div>
+    <div class="form-group">
+      <label>📍 Alamat</label>
+      <textarea id="alamat" rows="3" placeholder="Masukkan alamat lengkap (Jl, RT/RW)" required></textarea>
+    </div>
+    <div class="form-group">
+      <label>🔒 Password</label>
+      <input type="password" id="password" placeholder="Buat password" required>
+    </div>
+    <div class="form-group">
+      <label>🔒 Konfirmasi Password</label>
+      <input type="password" id="password2" placeholder="Ulangi password" required>
+    </div>
+    <button type="submit" class="btn green">Daftar</button>
+    <p class="link-row">Sudah punya akun? <a href="warga.html">Masuk</a></p>
+  </form>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script>
+document.getElementById('regForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const al = document.getElementById('alert');
+  al.style.display = 'none';
+
+  const nama = document.getElementById('nama').value.trim();
+  const username = document.getElementById('username').value.trim();
+  const noHp = document.getElementById('noHp').value.trim();
+  const alamat = document.getElementById('alamat').value.trim();
+  const pass = document.getElementById('password').value;
+  const pass2 = document.getElementById('password2').value;
+
+  if (pass !== pass2) {
+    al.className = 'alert error'; al.textContent = 'Password tidak cocok.'; al.style.display = 'block'; return;
+  }
+  const users = db.get('users_warga', []);
+  if (users.find(u => u.username === username)) {
+    al.className = 'alert error'; al.textContent = 'Username sudah digunakan.'; al.style.display = 'block'; return;
+  }
+  const newUser = { id: genId(), nama, username, password: pass, noHp, alamat };
+  users.push(newUser);
+  db.set('users_warga', users);
+  auth.setSession('warga', newUser);
+  location.href = '../warga/dashboard.html';
+});
+</script>
+</body>
+</html>
